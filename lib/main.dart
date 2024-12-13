@@ -1,6 +1,9 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
@@ -28,6 +31,43 @@ class MyApp extends StatelessWidget {
 
 class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
+  List<String> jokes = [];
+
+  MyAppState() {
+    loadJokes();
+  }
+
+  Future<void> loadJokes() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? cachedJokes = prefs.getStringList('jokes');
+    if (cachedJokes != null && cachedJokes.isNotEmpty) {
+      jokes = cachedJokes;
+    } else {
+      await fetchJokes();
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchJokes() async {
+    List<String> fetchedJokes = [];
+    for (int i = 0; i < 5; i++) {
+      final response = await http.get(Uri.parse('https://v2.jokeapi.dev/joke/Any'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['type'] == 'single') {
+          fetchedJokes.add(data['joke']);
+        } else {
+          fetchedJokes.add('${data['setup']} - ${data['delivery']}');
+        }
+      } else {
+        fetchedJokes.add('Failed to fetch joke');
+      }
+    }
+    jokes = fetchedJokes;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('jokes', jokes);
+    notifyListeners();
+  }
 }
 
 class MyHomePage extends StatefulWidget {
@@ -58,6 +98,9 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             Text('A random idea: helloo world'),
             Text(appState.current.asLowerCase),
+            SizedBox(height: 20),
+            Text('Random Jokes:'),
+            for (var joke in appState.jokes) Text(joke),
           ],
         ),
       ),
