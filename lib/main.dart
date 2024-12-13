@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => MyAppState(),
       child: MaterialApp(
-        title: 'Namerr App',
+        title: 'Jokes App',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
 class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
   List<String> jokes = [];
+  bool isLoading = false;
 
   MyAppState() {
     loadJokes();
@@ -49,6 +50,8 @@ class MyAppState extends ChangeNotifier {
   }
 
   Future<void> fetchJokes() async {
+    isLoading = true;
+    notifyListeners();
     List<String> fetchedJokes = [];
     for (int i = 0; i < 5; i++) {
       final response = await http.get(Uri.parse('https://v2.jokeapi.dev/joke/Any'));
@@ -66,6 +69,7 @@ class MyAppState extends ChangeNotifier {
     jokes = fetchedJokes;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setStringList('jokes', jokes);
+    isLoading = false;
     notifyListeners();
   }
 }
@@ -90,19 +94,42 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Namerr App'),
+        title: Text('Jokes App'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () async {
+              await appState.fetchJokes();
+            },
+          ),
+        ],
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('A random idea: helloo world'),
-            Text(appState.current.asLowerCase),
-            SizedBox(height: 20),
-            Text('Random Jokes:'),
-            for (var joke in appState.jokes) Text(joke),
-          ],
-        ),
+        child: appState.isLoading
+            ? CircularProgressIndicator()
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: 20),
+                  Text('Random Jokes:'),
+                  for (var joke in appState.jokes)
+                    Card(
+                      color: Colors.grey[200],
+                      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                      child: Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Text(
+                          joke,
+                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                        ),
+                      ),
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                ],
+              ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
