@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:io';
 
 void main() {
   runApp(MyApp());
@@ -33,9 +35,33 @@ class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
   List<String> jokes = [];
   bool isLoading = false;
+  bool isOnline = true;
 
   MyAppState() {
+    checkInitialConnectivity();
+    setupConnectivityStream();
     loadJokes();
+  }
+
+  Future<void> checkInitialConnectivity() async {
+    isOnline = await checkInternetConnection();
+    notifyListeners();
+  }
+
+  void setupConnectivityStream() {
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) async {
+      isOnline = await checkInternetConnection();
+      notifyListeners();
+    });
+  }
+
+  Future<bool> checkInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
   }
 
   Future<void> loadJokes() async {
@@ -50,6 +76,10 @@ class MyAppState extends ChangeNotifier {
   }
 
   Future<void> fetchJokes() async {
+    if (!isOnline) {
+      return;  // Return early if offline, letting the UI handle the alert
+    }
+    
     isLoading = true;
     notifyListeners();
     List<String> fetchedJokes = [];
@@ -88,6 +118,26 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _showOfflineAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('No Internet Connection'),
+          content: Text('New jokes can\'t be fetched since you are offline'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
@@ -99,7 +149,11 @@ class _MyHomePageState extends State<MyHomePage> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () async {
-              await appState.fetchJokes();
+              if (!appState.isOnline) {
+                _showOfflineAlert();
+              } else {
+                await appState.fetchJokes();
+              }
             },
           ),
         ],
@@ -111,6 +165,23 @@ class _MyHomePageState extends State<MyHomePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        appState.isOnline ? Icons.wifi : Icons.wifi_off,
+                        color: appState.isOnline ? Colors.green : Colors.red,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        appState.isOnline ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          color: appState.isOnline ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                   Text('Random Jokes:'),
                   for (var joke in appState.jokes)
                     Card(
