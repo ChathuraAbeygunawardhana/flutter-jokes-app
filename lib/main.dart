@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
+import 'dart:async';
 
 void main() {
   runApp(MyApp());
@@ -36,10 +37,12 @@ class MyAppState extends ChangeNotifier {
   List<String> jokes = [];
   bool isLoading = false;
   bool isOnline = true;
+  Timer? _connectivityTimer;
 
   MyAppState() {
     checkInitialConnectivity();
     setupConnectivityStream();
+    setupPeriodicConnectivityCheck();
     loadJokes();
   }
 
@@ -53,6 +56,22 @@ class MyAppState extends ChangeNotifier {
       isOnline = await checkInternetConnection();
       notifyListeners();
     });
+  }
+
+  void setupPeriodicConnectivityCheck() {
+    _connectivityTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
+      bool wasOnline = isOnline;
+      isOnline = await checkInternetConnection();
+      if (wasOnline != isOnline) {
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivityTimer?.cancel();
+    super.dispose();
   }
 
   Future<bool> checkInternetConnection() async {
@@ -77,7 +96,7 @@ class MyAppState extends ChangeNotifier {
 
   Future<void> fetchJokes() async {
     if (!isOnline) {
-      return;  // Return early if offline, letting the UI handle the alert
+      return;
     }
     
     isLoading = true;
@@ -124,7 +143,7 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('No Internet Connection'),
-          content: Text('New jokes can\'t be fetched since you are offline'),
+          content: Text('Can\'t fetch new jokes since you are offline'),
           actions: <Widget>[
             TextButton(
               child: Text('OK'),
@@ -141,65 +160,102 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
-
+    
     return Scaffold(
       appBar: AppBar(
         title: Text('Jokes App'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () async {
-              if (!appState.isOnline) {
-                _showOfflineAlert();
-              } else {
-                await appState.fetchJokes();
-              }
-            },
+          Container(
+            margin: EdgeInsets.symmetric(vertical: 8),
+            child: Material(
+              elevation: 5,
+              borderRadius: BorderRadius.circular(5),
+              color: Colors.grey[200],
+              child: TextButton.icon(
+                icon: Icon(
+                  Icons.refresh,
+                  color: Colors.black,
+                ),
+                label: Text(
+                  'Fetch new jokes',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                ),
+                onPressed: () async {
+                  if (!appState.isOnline) {
+                    _showOfflineAlert();
+                  } else {
+                    await appState.fetchJokes();
+                  }
+                },
+              ),
+            ),
           ),
+          SizedBox(width: 8),
         ],
       ),
       body: Center(
         child: appState.isLoading
-            ? CircularProgressIndicator()
-            : Column(
+            ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        appState.isOnline ? Icons.wifi : Icons.wifi_off,
-                        color: appState.isOnline ? Colors.green : Colors.red,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        appState.isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
-                          color: appState.isOnline ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text('Random Jokes:'),
-                  for (var joke in appState.jokes)
-                    Card(
-                      color: Colors.grey[200],
-                      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                      child: Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Text(
-                          joke,
-                          style: TextStyle(fontSize: 16, color: Colors.black87),
-                        ),
-                      ),
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Fetching new jokes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
                     ),
+                  ),
                 ],
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          appState.isOnline ? Icons.wifi : Icons.wifi_off,
+                          color: appState.isOnline ? Colors.green : Colors.red,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          appState.isOnline ? 'Online' : 'Offline',
+                          style: TextStyle(
+                            color: appState.isOnline ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text('Random Jokes:'),
+                    for (var joke in appState.jokes)
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Card(
+                          color: Colors.grey[200],
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(10),
+                            child: Text(
+                              joke,
+                              style: TextStyle(fontSize: 16, color: Colors.black87),
+                            ),
+                          ),
+                          elevation: 5,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
       ),
       bottomNavigationBar: BottomNavigationBar(
