@@ -129,14 +129,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   void _showOfflineAlert() {
     showDialog(
       context: context,
@@ -180,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   'Fetch new jokes',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.black,
+                    color: Colors.black87,  // Now exactly matches joke card text style
                   ),
                 ),
                 onPressed: () async {
@@ -257,25 +249,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.business),
-            label: 'Business',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'School',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
-        onTap: _onItemTapped,
       ),
     );
   }
