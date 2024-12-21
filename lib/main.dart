@@ -101,25 +101,53 @@ class MyAppState extends ChangeNotifier {
     
     isLoading = true;
     notifyListeners();
+    
     List<String> fetchedJokes = [];
-    for (int i = 0; i < 5; i++) {
-      final response = await http.get(Uri.parse('https://v2.jokeapi.dev/joke/Any'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['type'] == 'single') {
-          fetchedJokes.add(data['joke']);
-        } else {
-          fetchedJokes.add('${data['setup']} - ${data['delivery']}');
+    bool hasTimeout = false;
+
+    try {
+      for (int i = 0; i < 5 && !hasTimeout; i++) {
+        try {
+          final response = await http.get(
+            Uri.parse('https://v2.jokeapi.dev/joke/Any')
+          ).timeout(
+            Duration(seconds: 5),
+            onTimeout: () {
+              hasTimeout = true;
+              throw TimeoutException('Request timed out');
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data['type'] == 'single') {
+              fetchedJokes.add(data['joke']);
+            } else {
+              fetchedJokes.add('${data['setup']} - ${data['delivery']}');
+            }
+          } else {
+            fetchedJokes.add('Failed to fetch joke');
+          }
+        } on TimeoutException {
+          print('Request timed out, reverting to cached jokes');
+          hasTimeout = true;
+          break;
+        } catch (e) {
+          print('Error fetching joke: $e');
+          fetchedJokes.add('Failed to fetch joke');
         }
-      } else {
-        fetchedJokes.add('Failed to fetch joke');
       }
+
+      // Only update jokes if we got new ones without timeout
+      if (!hasTimeout && fetchedJokes.isNotEmpty) {
+        jokes = fetchedJokes;
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setStringList('jokes', jokes);
+      }
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
-    jokes = fetchedJokes;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('jokes', jokes);
-    isLoading = false;
-    notifyListeners();
   }
 }
 
