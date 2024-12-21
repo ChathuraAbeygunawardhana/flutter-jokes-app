@@ -1,5 +1,14 @@
-# Miscellaneous
-*.class
+# Directories to exclude when sharing
+build/
+.dart_tool/
+.idea/
+.pub/
+.pub-cache/
+
+# Files to exclude
+.flutter-plugins
+.flutter-plugins-dependencies
+*.lock
 *.log
 *.pyc
 *.swp
@@ -10,11 +19,17 @@
 .svn/
 migrate_working_dir/
 
+# Keep these directories
+# lib/
+# pubspec.yaml
+# android/
+# ios/
+# assets/
+
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
-.idea/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -24,12 +39,6 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
 
 # Symbolication related
 app.*.symbols
@@ -41,3 +50,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Additional entries for cleaning
+.packages
+/build/
+.flutter-plugins-dependencies
+.flutter-plugins
+.dart_tool/
+pubspec.lock
+
+# Coverage directory
+/coverage/
+
+# Local development files
+*.env
+.env.local
